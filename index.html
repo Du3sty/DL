@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DL</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<canvas id="bg"></canvas>
+
+<header>
+<div class="logo">DL</div>
+<input id="search" placeholder="Search games..." />
+</header>
+
+<div id="authBox">
+<input id="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
+
+<aside id="sidebar"></aside>
+
+<main>
+
+<div id="adminPanel" style="display:none;">
+<h3>Admin Mode</h3>
+</div>
+
+<button id="favBtn">⭐ Favorites</button>
+
+<div id="content"></div>
+
+</main>
+
+<script src="data.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
