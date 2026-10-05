@@ -1,43 +1,305 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DL</title>
-<link rel="stylesheet" href="style.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DL — Your Personal Download Vault</title>
+<meta name="description" content="Games, software, and resources — curated, searchable, and yours to customize." />
+<style>
+  :root {
+    --bg: #05070d;
+    --bg2: #0a0f1c;
+    --panel: rgba(13, 20, 38, 0.72);
+    --line: rgba(56, 130, 246, 0.18);
+    --blue: #3b82f6;
+    --cyan: #22d3ee;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- animated background ---- */
+  #grid-bg {
+    position: fixed; inset: 0; z-index: -2;
+    background-image:
+      linear-gradient(rgba(59,130,246,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+    animation: gridDrift 24s linear infinite;
+  }
+  @keyframes gridDrift { to { background-position: 44px 44px; } }
+  .glow {
+    position: fixed; border-radius: 50%; filter: blur(120px); z-index: -1;
+    pointer-events: none; opacity: .35;
+  }
+  .glow-a { width: 480px; height: 480px; background: #1d4ed8; top: -140px; left: -120px; animation: floatA 14s ease-in-out infinite alternate; }
+  .glow-b { width: 420px; height: 420px; background: #0e7490; bottom: -160px; right: -100px; animation: floatB 18s ease-in-out infinite alternate; }
+  @keyframes floatA { to { transform: translate(90px, 60px) scale(1.15); } }
+  @keyframes floatB { to { transform: translate(-80px, -70px) scale(1.1); } }
+  #scanline {
+    position: fixed; left: 0; right: 0; height: 120px; z-index: -1;
+    background: linear-gradient(180deg, transparent, rgba(59,130,246,.05), transparent);
+    animation: scan 7s linear infinite; pointer-events: none;
+  }
+  @keyframes scan { from { top: -120px; } to { top: 100vh; } }
+
+  /* ---- layout ---- */
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: blur(14px);
+    background: rgba(5,7,13,.7);
+    border-bottom: 1px solid var(--line);
+  }
+  .header-in { max-width: 1100px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .logo {
+    font-size: 22px; font-weight: 800; letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--blue), var(--cyan));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: pulseGlow 3s ease-in-out infinite;
+  }
+  @keyframes pulseGlow { 50% { filter: drop-shadow(0 0 10px rgba(59,130,246,.7)); } }
+  .search {
+    flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 14px; transition: border-color .25s, box-shadow .25s;
+  }
+  .search:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+  .search input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 14px; }
+  .search input::placeholder { color: var(--muted); }
+
+  /* ---- hero ---- */
+  .hero { text-align: center; padding: 70px 0 40px; }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 58px); font-weight: 900; letter-spacing: 1px;
+    background: linear-gradient(90deg, #60a5fa, #22d3ee, #60a5fa);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shine 5s linear infinite, riseIn .8s ease both;
+  }
+  @keyframes shine { to { background-position: 200% center; } }
+  .hero p { color: var(--muted); margin-top: 14px; font-size: 16px; animation: riseIn .8s .15s ease both; }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  .stats { display: flex; justify-content: center; gap: 28px; margin-top: 26px; animation: riseIn .8s .3s ease both; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat b { font-size: 24px; color: var(--cyan); display: block; }
+  .stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ---- category pills ---- */
+  .pills { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 34px 0 10px; }
+  .pill {
+    padding: 8px 18px; border-radius: 999px; cursor: pointer; font-size: 13px;
+    background: var(--panel); border: 1px solid var(--line); color: var(--muted);
+    transition: all .25s; user-select: none;
+  }
+  .pill:hover { color: var(--text); border-color: var(--blue); transform: translateY(-2px); }
+  .pill.active {
+    background: linear-gradient(90deg, rgba(59,130,246,.25), rgba(34,211,238,.2));
+    border-color: var(--blue); color: #fff;
+    box-shadow: 0 0 18px rgba(59,130,246,.35);
+  }
+
+  /* ---- sections & cards ---- */
+  section.cat { margin-top: 44px; }
+  .cat-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .cat-head h2 { font-size: 20px; color: #93c5fd; letter-spacing: .5px; }
+  .cat-head span { font-size: 13px; color: var(--muted); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .card {
+    position: relative; display: block; text-decoration: none; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px; overflow: hidden;
+    transition: transform .25s, border-color .25s, box-shadow .25s;
+    animation: cardIn .5s ease both;
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+  .card::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(59,130,246,.12) 50%, transparent 70%);
+    transform: translateX(-100%); transition: transform .6s;
+  }
+  .card:hover { transform: translateY(-4px); border-color: var(--blue); box-shadow: 0 8px 30px rgba(59,130,246,.25); }
+  .card:hover::before { transform: translateX(100%); }
+  .card h3 { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .card p { font-size: 12.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .star { color: #facc15; font-size: 13px; }
+  .tag {
+    display: inline-block; margin-top: 10px; font-size: 10.5px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--cyan);
+    border: 1px solid rgba(34,211,238,.3); border-radius: 6px; padding: 2px 8px;
+  }
+  .hidden { display: none; }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; font-size: 15px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 70px; letter-spacing: 1px; }
+  footer a { color: var(--blue); text-decoration: none; }
+</style>
 </head>
-
 <body>
-
-<canvas id="bg"></canvas>
+<div id="grid-bg"></div>
+<div class="glow glow-a"></div>
+<div class="glow glow-b"></div>
+<div id="scanline"></div>
 
 <header>
-<div class="logo">DL</div>
-<input id="search" placeholder="Search games..." />
+  <div class="header-in">
+    <div class="logo">DL</div>
+    <label class="search">
+      <span>⌕</span>
+      <input id="q" type="text" placeholder="Search resources…" autocomplete="off" />
+    </label>
+  </div>
 </header>
 
-<div id="authBox">
-<input id="email" placeholder="Email">
-<input id="pass" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
+<div class="wrap">
+  <div class="hero">
+    <h1>YOUR DOWNLOAD VAULT</h1>
+    <p>Games, software, and resources — curated, searchable, and yours to customize.</p>
+    <div class="stats">
+      <div class="stat"><b id="stat-cats">0</b><span>Categories</span></div>
+      <div class="stat"><b id="stat-links">0</b><span>Links</span></div>
+      <div class="stat"><b id="stat-star">0</b><span>Starred</span></div>
+    </div>
+  </div>
+
+  <div class="pills" id="pills"></div>
+  <main id="main"></main>
+  <div class="empty hidden" id="empty">No results found. Try a different search.</div>
+
+  <footer>DL — edit <b>index.html</b> to add your own links · built with the blue/black NEXUS theme</footer>
 </div>
 
-<aside id="sidebar"></aside>
+<script>
+// ====== EDIT YOUR LINKS HERE ======
+const DATA = [
+  { id: "games", name: "Games", desc: "Game downloads", items: [
+    { name: "GTA V", url: "https://www.mediafire.com/file/example1", desc: "Open World Game", star: true, tag: "download" },
+    { name: "Minecraft", url: "https://www.mediafire.com/file/example2", desc: "Sandbox Game", tag: "download" },
+  ]},
+  { id: "software", name: "Software", desc: "Apps & tools", items: [
+    { name: "WinRAR", url: "https://www.mediafire.com/file/example3", desc: "File Extractor", star: true, tag: "download" },
+  ]},
+  { id: "streaming", name: "Streaming & Video", desc: "Watch movies, shows, and live TV", items: [
+    { name: "Cineby", url: "https://www.cineby.app", desc: "Slick movie & TV streaming UI" },
+    { name: "Hydrahd", url: "https://hydrahd.cc", desc: "Massive library of films & shows" },
+  ]},
+  { id: "music", name: "Music & Audio", desc: "Streaming, downloads, and discovery", items: [
+    { name: "Spotify Web", url: "https://open.spotify.com" },
+    { name: "Cobalt", url: "https://cobalt.tools", desc: "Download from any platform", star: true },
+    { name: "Last.fm", url: "https://last.fm", desc: "Music scrobbling & discovery" },
+  ]},
+  { id: "books", name: "Books & Reading", desc: "Ebooks, audiobooks, and PDFs", items: [
+    { name: "Anna's Archive", url: "https://annas-archive.org", desc: "Largest open library", star: true },
+    { name: "Z-Library", url: "https://z-library.sk" },
+    { name: "LibGen", url: "https://libgen.is" },
+  ]},
+  { id: "dev", name: "Developer Tools", desc: "Code, deploy, and ship", items: [
+    { name: "GitHub", url: "https://github.com", star: true },
+    { name: "Cloudflare", url: "https://cloudflare.com" },
+    { name: "Vercel", url: "https://vercel.com" },
+    { name: "DevDocs", url: "https://devdocs.io", desc: "All your API docs in one place" },
+  ]},
+  { id: "ai", name: "AI & ML", desc: "Models, chats, and creative AI", items: [
+    { name: "ChatGPT", url: "https://chat.openai.com" },
+    { name: "Claude", url: "https://claude.ai", star: true },
+    { name: "Hugging Face", url: "https://huggingface.co" },
+    { name: "Perplexity", url: "https://perplexity.ai" },
+  ]},
+  { id: "tools", name: "Utility Tools", desc: "Converters, editors, and helpers", items: [
+    { name: "CyberChef", url: "https://gchq.github.io/CyberChef", desc: "Cyber swiss army knife", star: true },
+    { name: "Regex101", url: "https://regex101.com" },
+    { name: "JSON Crack", url: "https://jsoncrack.com" },
+  ]},
+  { id: "learning", name: "Learning", desc: "Courses, tutorials, and docs", items: [
+    { name: "freeCodeCamp", url: "https://freecodecamp.org" },
+    { name: "MIT OCW", url: "https://ocw.mit.edu" },
+    { name: "The Odin Project", url: "https://theodinproject.com" },
+  ]},
+  { id: "design", name: "Design & Assets", desc: "Stock, icons, fonts, mockups", items: [
+    { name: "Unsplash", url: "https://unsplash.com" },
+    { name: "Figma", url: "https://figma.com", star: true },
+    { name: "Google Fonts", url: "https://fonts.google.com" },
+  ]},
+  { id: "privacy", name: "Privacy & Security", desc: "VPNs, encryption, and OPSEC", items: [
+    { name: "PrivacyGuides", url: "https://privacyguides.org", star: true },
+    { name: "Proton", url: "https://proton.me" },
+    { name: "Bitwarden", url: "https://bitwarden.com" },
+  ]},
+  { id: "cloud", name: "Cloud & Storage", desc: "Sync, backup, and share", items: [
+    { name: "Mega", url: "https://mega.nz" },
+    { name: "Internxt", url: "https://internxt.com" },
+  ]},
+  { id: "news", name: "News & Reading", desc: "Stay informed", items: [
+    { name: "Hacker News", url: "https://news.ycombinator.com", star: true },
+    { name: "Lobste.rs", url: "https://lobste.rs" },
+  ]},
+];
+// ====== END OF EDITABLE LINKS ======
 
-<main>
+const main = document.getElementById("main");
+const pillsEl = document.getElementById("pills");
+const emptyEl = document.getElementById("empty");
+const qEl = document.getElementById("q");
+let activeCat = "all";
 
-<div id="adminPanel" style="display:none;">
-<h3>Admin Mode</h3>
-</div>
+// stats
+document.getElementById("stat-cats").textContent = DATA.length;
+document.getElementById("stat-links").textContent = DATA.reduce((n, c) => n + c.items.length, 0);
+document.getElementById("stat-star").textContent = DATA.reduce((n, c) => n + c.items.filter(i => i.star).length, 0);
 
-<button id="favBtn">⭐ Favorites</button>
+// pills
+const cats = [{ id: "all", name: "All" }, ...DATA.map(c => ({ id: c.id, name: c.name }))];
+cats.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "pill" + (c.id === "all" ? " active" : "");
+  b.textContent = c.name;
+  b.onclick = () => {
+    activeCat = c.id;
+    pillsEl.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+    b.classList.add("active");
+    render();
+  };
+  pillsEl.appendChild(b);
+});
 
-<div id="content"></div>
+function cardHTML(item, i) {
+  return `<a class="card" href="${item.url}" target="_blank" rel="noopener" style="animation-delay:${i * 40}ms">
+    <h3>${item.star ? '<span class="star">★</span>' : ""}${item.name}</h3>
+    ${item.desc ? `<p>${item.desc}</p>` : ""}
+    ${item.tag ? `<span class="tag">${item.tag}</span>` : ""}
+  </a>`;
+}
 
-</main>
+function render() {
+  const q = qEl.value.trim().toLowerCase();
+  let html = "", shown = 0;
+  DATA.forEach(cat => {
+    if (activeCat !== "all" && cat.id !== activeCat) return;
+    const items = cat.items.filter(i =>
+      !q || i.name.toLowerCase().includes(q) || (i.desc || "").toLowerCase().includes(q) || (i.tag || "").toLowerCase().includes(q)
+    );
+    if (!items.length) return;
+    shown += items.length;
+    html += `<section class="cat">
+      <div class="cat-head"><h2>${cat.name}</h2><span>${cat.desc} · ${items.length} link${items.length === 1 ? "" : "s"}</span></div>
+      <div class="cards">${items.map(cardHTML).join("")}</div>
+    </section>`;
+  });
+  main.innerHTML = html;
+  emptyEl.classList.toggle("hidden", shown > 0);
+}
 
-<script src="data.js"></script>
-<script src="script.js"></script>
-
+qEl.addEventListener("input", render);
+render();
+</script>
 </body>
 </html>
